@@ -239,8 +239,8 @@ impl eframe::App for Emenu {
                     {
                         // if tab_multi {}
 
-                        if self.selected_idx > (view_rows - 2)
-                            && self.selected_idx < (matched_count - 1)
+                        if self.selected_idx >= (view_rows - 1)
+                            && self.selected_idx < (matched_count - 1 - self.first_idx)
                         {
                             self.first_idx += 1;
                         } else {
