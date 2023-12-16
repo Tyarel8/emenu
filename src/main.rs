@@ -93,6 +93,7 @@ struct Emenu {
     prompt: String,
     marker: String,
     pointer: String,
+    ellipsis: char,
     selected_idx: u32,
     first_idx: u32,
     output_number: usize, // rx: mpsc::Receiver<bool>,
@@ -106,6 +107,7 @@ impl Emenu {
             prompt: cli.prompt,
             marker: cli.marker,
             pointer: cli.pointer,
+            ellipsis: cli.ellipsis,
             input: String::new(),
             selected_idx: 0,
             first_idx: 0,
@@ -190,26 +192,32 @@ impl eframe::App for Emenu {
 
                             view_rows += 1;
 
-                            let char_size = ui.fonts(|f| f.glyph_width(&self.font_id, ' '));
-                            let max_chars =
-                                (ui.max_rect().width() / char_size).trunc() as usize - 2;
-
                             let match_string = matched.data;
 
-                            let dots = if match_string.chars().count() > max_chars {
-                                "…"
+                            let pointer = if i == self.selected_idx as usize {
+                                &self.pointer
                             } else {
                                 ""
                             };
 
+                            // TODO: marker
+                            let marker = "";
+
+                            let pointer_len = self.pointer.chars().count();
+                            let marker_len = self.marker.chars().count();
+
+                            let max_chars =
+                                get_mono_char_width(ui, &self.font_id) - (marker_len + pointer_len);
+
+                            let ellipsis = if match_string.chars().count() > max_chars {
+                                self.ellipsis.to_string()
+                            } else {
+                                "".to_string()
+                            };
+
                             let entry = ui.add(
                                 egui::Label::new(format!(
-                                    "{:<2}{}{dots}",
-                                    if i == self.selected_idx as usize {
-                                        &self.pointer
-                                    } else {
-                                        ""
-                                    },
+                                    "{pointer:>pointer_len$}{marker:>marker_len$}{}{ellipsis}",
                                     match_string.char_range(0..max_chars),
                                 ))
                                 .sense(Sense::click())
@@ -231,7 +239,9 @@ impl eframe::App for Emenu {
                         .input(|i| i.modifiers.matches(Modifiers::CTRL) && i.key_pressed(Key::N)))
                         || (ui.ui_contains_pointer() && ctx.input(|i| i.scroll_delta.y < 0.0))
                     {
-                        if self.selected_idx > (view_rows - 2) {
+                        if self.selected_idx > (view_rows - 2)
+                            && self.selected_idx < (matched_count - 1)
+                        {
                             self.first_idx += 1;
                         } else {
                             self.selected_idx = self.selected_idx.saturating_add(1);
@@ -280,4 +290,9 @@ impl Emenu {
         //     dbg!("Enter pressed");
         // }
     }
+}
+
+fn get_mono_char_width(ui: &mut egui::Ui, font_id: &FontId) -> usize {
+    let char_size = ui.fonts(|f| f.glyph_width(font_id, ' '));
+    (ui.max_rect().width() / char_size).trunc() as usize
 }

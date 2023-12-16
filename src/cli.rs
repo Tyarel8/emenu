@@ -20,4 +20,7 @@ pub struct Cli {
     #[arg(long)]
     /// Reverse the order of the input
     pub tac: bool,
+    #[arg(long, default_value_t = '…')]
+    /// Ellipsis to show when line is truncated
+    pub ellipsis: char,
 }
