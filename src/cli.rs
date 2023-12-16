@@ -2,25 +2,25 @@ use clap::Parser;
 
 #[derive(Parser)]
 pub struct Cli {
-    #[arg(long = "exit-0", short = '0')]
     /// Exit immediately when there's no match
+    #[arg(long = "exit-0", short = '0')]
     pub exit_if_empty: bool,
-    #[arg(long, short)]
-    /// Enable multi-select with tab/shift-tab
-    pub multi: Option<usize>,
-    #[arg(long, default_value_t = String::from(""))]
+    // /// Enable multi-select with tab/shift-tab
+    // #[arg(long, short)]
+    // pub multi: Option<usize>,
     /// Input prompt
+    #[arg(long, default_value_t = String::from(""))]
     pub prompt: String,
-    #[arg(long, default_value_t = String::from(">"))]
     /// Pointer to the current line
+    #[arg(long, default_value_t = String::from("→"))]
     pub pointer: String,
-    #[arg(long, default_value_t = String::from(">"))]
     /// Multi-select marker
+    #[arg(long, default_value_t = String::from(">"))]
     pub marker: String,
-    #[arg(long)]
-    /// Reverse the order of the input
-    pub tac: bool,
-    #[arg(long, default_value_t = '…')]
+    // /// Reverse the order of the input
+    // #[arg(long)]
+    // pub tac: bool,
     /// Ellipsis to show when line is truncated
+    #[arg(long, default_value_t = '…')]
     pub ellipsis: char,
 }

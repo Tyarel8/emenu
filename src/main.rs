@@ -1,19 +1,13 @@
-#![allow(unused)]
+// #![allow(unused)]
 
 // hide console window on Windows in release
 // #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{
-    io::stdin,
-    process::exit,
-    sync::{mpsc, Arc},
-};
+use std::{io::stdin, process::exit, sync::Arc, thread, time::Duration};
 
 use clap::Parser;
 use eframe::{
-    egui::{
-        self, FontDefinitions, Key, Modifiers, MouseWheelUnit, Sense, Separator, Style, TextBuffer,
-    },
+    egui::{self, Key, Modifiers, Sense, Separator, TextBuffer},
     epaint::{Color32, FontId},
 };
 use nucleo::Nucleo;
@@ -24,37 +18,25 @@ mod cli;
 fn main() -> Result<(), eframe::Error> {
     let cli = cli::Cli::parse();
 
-    // read the haystack from stdin
-    let mut haystack: Vec<_> = if atty::isnt(atty::Stream::Stdin) {
-        stdin().lines().flatten().collect()
-    } else {
-        vec![]
-    };
-
-    if cli.exit_if_empty && haystack.is_empty() {
+    if cli.exit_if_empty && atty::is(atty::Stream::Stdin) {
         exit(0)
     }
 
-    if cli.tac {
-        haystack.reverse()
-    }
-
-    // let (tx, rx) = mpsc::channel();
-    let nucleo = Nucleo::new(
-        nucleo::Config::DEFAULT,
-        Arc::new(move || {
-            // tx.send(true).unwrap();
-        }),
-        None,
-        1,
-    );
+    let nucleo = Nucleo::new(nucleo::Config::DEFAULT, Arc::new(|| {}), None, 1);
 
     let inj = nucleo.injector();
-    for s in haystack {
-        inj.push(s.clone(), |c| {
-            c[0] = s.into();
-        });
-    }
+
+    // Read from stdin in another thread
+    // TODO: nucleo has to add support for --tac
+    thread::spawn(move || {
+        if atty::isnt(atty::Stream::Stdin) {
+            stdin().lines().flatten().for_each(|s| {
+                inj.push(s.clone(), |c| {
+                    c[0] = s.into();
+                });
+            })
+        }
+    });
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -97,6 +79,7 @@ struct Emenu {
     selected_idx: u32,
     first_idx: u32,
     output_number: usize, // rx: mpsc::Receiver<bool>,
+    multi_output: Vec<String>,
     font_id: FontId,
 }
 
@@ -111,7 +94,9 @@ impl Emenu {
             input: String::new(),
             selected_idx: 0,
             first_idx: 0,
-            output_number: cli.multi.unwrap_or(1),
+            output_number: 1,
+            // output_number: cli.multi.unwrap_or(1),
+            multi_output: vec![],
             font_id,
         }
     }
@@ -120,8 +105,12 @@ impl Emenu {
 impl eframe::App for Emenu {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // if let Ok(true) = self.rx.try_recv() {
-        self.nucleo.tick(10);
+        let snapshot_changed = self.nucleo.tick(10).changed;
         // }
+
+        if snapshot_changed {
+            ctx.request_repaint_after(Duration::from_secs(1));
+        }
 
         self.keyboard_events_exit(ctx, _frame);
 
@@ -172,7 +161,14 @@ impl eframe::App for Emenu {
                     let matched_count = snap.matched_item_count();
 
                     ui.horizontal(|ui| {
-                        ui.label(format!("{matched_count}/{total_count}"));
+                        ui.label(format!(
+                            "{matched_count}/{total_count}{}",
+                            if self.output_number > 1 {
+                                format!("({})", self.multi_output.len())
+                            } else {
+                                "".to_string()
+                            }
+                        ));
                         ui.add(Separator::default().horizontal());
                     });
 
@@ -180,7 +176,6 @@ impl eframe::App for Emenu {
 
                     let mut view_rows = 0;
 
-                    // dbg!(ui.min_rect());
                     ui.vertical(|ui| {
                         for (i, matched) in snap
                             .matched_items(self.first_idx..snap.matched_item_count())
@@ -235,10 +230,15 @@ impl eframe::App for Emenu {
                     });
 
                     // Move current pointer with ctrl + p/n or mouse wheel
+                    let tab_multi =
+                        ctx.input(|i| i.key_pressed(Key::Tab)) && self.output_number > 1;
                     if (ctx
                         .input(|i| i.modifiers.matches(Modifiers::CTRL) && i.key_pressed(Key::N)))
                         || (ui.ui_contains_pointer() && ctx.input(|i| i.scroll_delta.y < 0.0))
+                        || tab_multi
                     {
+                        // if tab_multi {}
+
                         if self.selected_idx > (view_rows - 2)
                             && self.selected_idx < (matched_count - 1)
                         {
@@ -264,7 +264,7 @@ impl eframe::App for Emenu {
                     // Handle enter
                     if ctx.input(|i| i.key_pressed(Key::Enter)) {
                         if let Some(item) =
-                            snap.get_matched_item(self.first_idx + self.selected_idx as u32)
+                            snap.get_matched_item(self.first_idx + self.selected_idx)
                         {
                             print!("{}", item.data)
                         }
