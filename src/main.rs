@@ -40,6 +40,7 @@ fn main() -> Result<(), eframe::Error> {
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
+            .with_always_on_top()
             .with_decorations(false)
             .with_resizable(false)
             .with_inner_size([480.0, 510.0]),
