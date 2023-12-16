@@ -237,7 +237,8 @@ impl eframe::App for Emenu {
                             }
 
                             if entry.double_clicked() {
-                                todo!()
+                                print!("{match_string}");
+                                exit(0);
                             }
                         }
                     });
@@ -258,12 +259,11 @@ impl eframe::App for Emenu {
                             && self.selected_idx < (matched_count - 1 - self.first_idx)
                         {
                             self.first_idx += 1;
-                        } else if !(self.cycle && self.selected_idx == view_rows.saturating_sub(1))
-                        {
-                            self.selected_idx = self.selected_idx.saturating_add(1);
-                        } else {
+                        } else if self.cycle && self.selected_idx == view_rows.saturating_sub(1) {
                             self.selected_idx = 0;
                             self.first_idx = 0;
+                        } else {
+                            self.selected_idx = self.selected_idx.saturating_add(1);
                         }
                     }
 
