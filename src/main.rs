@@ -22,7 +22,17 @@ fn main() -> Result<(), eframe::Error> {
         exit(0)
     }
 
-    let nucleo = Nucleo::new(nucleo::Config::DEFAULT, Arc::new(|| {}), None, 1);
+    let nucleo = Nucleo::new(
+        {
+            let mut conf = nucleo::Config::DEFAULT;
+            conf.ignore_case = cli.case_insensitive;
+            conf.normalize = !cli.literal;
+            conf
+        },
+        Arc::new(|| {}),
+        None,
+        1,
+    );
 
     let inj = nucleo.injector();
 
@@ -77,6 +87,7 @@ struct Emenu {
     marker: String,
     pointer: String,
     ellipsis: char,
+    cycle: bool,
     selected_idx: u32,
     first_idx: u32,
     output_number: usize, // rx: mpsc::Receiver<bool>,
@@ -92,6 +103,7 @@ impl Emenu {
             marker: cli.marker,
             pointer: cli.pointer,
             ellipsis: cli.ellipsis,
+            cycle: cli.cycle,
             input: String::new(),
             selected_idx: 0,
             first_idx: 0,
@@ -175,7 +187,7 @@ impl eframe::App for Emenu {
 
                     ui.add_space(4.0);
 
-                    let mut view_rows = 0;
+                    let mut view_rows: u32 = 0;
 
                     ui.vertical(|ui| {
                         for (i, matched) in snap
@@ -233,10 +245,12 @@ impl eframe::App for Emenu {
                     // Move current pointer with ctrl + p/n or mouse wheel
                     let tab_multi =
                         ctx.input(|i| i.key_pressed(Key::Tab)) && self.output_number > 1;
-                    if (ctx
-                        .input(|i| i.modifiers.matches(Modifiers::CTRL) && i.key_pressed(Key::N)))
-                        || (ui.ui_contains_pointer() && ctx.input(|i| i.scroll_delta.y < 0.0))
-                        || tab_multi
+                    if view_rows > 0
+                        && ((ctx.input(|i| {
+                            i.modifiers.matches(Modifiers::CTRL) && i.key_pressed(Key::N)
+                        })) || (ui.ui_contains_pointer()
+                            && ctx.input(|i| i.scroll_delta.y < 0.0))
+                            || tab_multi)
                     {
                         // if tab_multi {}
 
@@ -244,18 +258,30 @@ impl eframe::App for Emenu {
                             && self.selected_idx < (matched_count - 1 - self.first_idx)
                         {
                             self.first_idx += 1;
-                        } else {
+                        } else if !(self.cycle && self.selected_idx == view_rows.saturating_sub(1))
+                        {
                             self.selected_idx = self.selected_idx.saturating_add(1);
+                        } else {
+                            self.selected_idx = 0;
+                            self.first_idx = 0;
                         }
                     }
 
-                    if (ctx
-                        .input(|i| i.modifiers.matches(Modifiers::CTRL) && i.key_pressed(Key::P)))
-                        || (ui.ui_contains_pointer() && ctx.input(|i| i.scroll_delta.y > 0.0))
+                    if view_rows > 0
+                        && ((ctx.input(|i| {
+                            i.modifiers.matches(Modifiers::CTRL) && i.key_pressed(Key::P)
+                        })) || (ui.ui_contains_pointer()
+                            && ctx.input(|i| i.scroll_delta.y > 0.0)))
                     {
                         if self.first_idx != 0 && self.selected_idx == 0 {
                             self.first_idx -= 1;
                         }
+
+                        if self.cycle && self.selected_idx == 0 {
+                            self.selected_idx = matched_count;
+                            self.first_idx = matched_count - view_rows;
+                        }
+
                         self.selected_idx = self.selected_idx.saturating_sub(1);
                     }
 

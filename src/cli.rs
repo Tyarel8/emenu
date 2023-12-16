@@ -5,6 +5,15 @@ pub struct Cli {
     /// Exit immediately when there's no match
     #[arg(long = "exit-0", short = '0')]
     pub exit_if_empty: bool,
+    /// Case-insensitive match (default: smart-case match)
+    #[arg(short = 'i')]
+    pub case_insensitive: bool,
+    /// Do not normalize latin script letters before matching
+    #[arg(long)]
+    pub literal: bool,
+    /// Enable cyclic scroll
+    #[arg(long)]
+    pub cycle: bool,
     // /// Enable multi-select with tab/shift-tab
     // #[arg(long, short)]
     // pub multi: Option<usize>,
