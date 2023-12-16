@@ -263,7 +263,9 @@ impl eframe::App for Emenu {
 
                     // Handle enter
                     if ctx.input(|i| i.key_pressed(Key::Enter)) {
-                        if let Some(item) = snap.get_matched_item(self.selected_idx as u32) {
+                        if let Some(item) =
+                            snap.get_matched_item(self.first_idx + self.selected_idx as u32)
+                        {
                             print!("{}", item.data)
                         }
                         exit(0);
