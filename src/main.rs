@@ -11,13 +11,16 @@ use std::{
 
 use clap::Parser;
 use eframe::{
-    egui::{self, FontDefinitions, Key, Modifiers, Separator, Style},
+    egui::{
+        self, FontDefinitions, Key, Modifiers, MouseWheelUnit, Sense, Separator, Style, TextBuffer,
+    },
     epaint::{Color32, FontId},
 };
 use nucleo::Nucleo;
 
 mod cli;
 
+// TODO: proper theme, config, multimode, highlight searched in matches
 fn main() -> Result<(), eframe::Error> {
     let cli = cli::Cli::parse();
 
@@ -57,12 +60,12 @@ fn main() -> Result<(), eframe::Error> {
         viewport: egui::ViewportBuilder::default()
             .with_decorations(false)
             .with_resizable(false)
-            .with_inner_size([480.0, 500.0]),
+            .with_inner_size([480.0, 510.0]),
         centered: true,
         ..Default::default()
     };
 
-    let mul = cli.multi.clone();
+    // let mul = cli.multi.clone();
     eframe::run_native(
         "emenu",
         options,
@@ -70,15 +73,16 @@ fn main() -> Result<(), eframe::Error> {
             let ctx = &cc.egui_ctx;
             ctx.set_pixels_per_point(1.25);
             // ctx.set_fonts(FontDefinitions::)
+            let font = egui::FontId {
+                size: 13.0,
+                family: egui::FontFamily::Monospace,
+            };
             ctx.set_style(egui::style::Style {
-                override_font_id: Some(egui::FontId {
-                    size: 13.0,
-                    family: egui::FontFamily::Monospace,
-                }),
+                override_font_id: Some(font.clone()),
                 ..Default::default()
             });
 
-            Box::new(Emenu::new(nucleo, cli))
+            Box::new(Emenu::new(nucleo, cli, font))
         }),
     )
 }
@@ -90,11 +94,13 @@ struct Emenu {
     marker: String,
     pointer: String,
     selected_idx: u32,
+    first_idx: u32,
     output_number: usize, // rx: mpsc::Receiver<bool>,
+    font_id: FontId,
 }
 
 impl Emenu {
-    fn new(nucleo: Nucleo<String>, cli: cli::Cli) -> Self {
+    fn new(nucleo: Nucleo<String>, cli: cli::Cli, font_id: FontId) -> Self {
         Self {
             nucleo,
             prompt: cli.prompt,
@@ -102,7 +108,9 @@ impl Emenu {
             pointer: cli.pointer,
             input: String::new(),
             selected_idx: 0,
+            first_idx: 0,
             output_number: cli.multi.unwrap_or(1),
+            font_id,
         }
     }
 }
@@ -139,10 +147,6 @@ impl eframe::App for Emenu {
                             edit = edit.labelled_by(prompt.id);
                         }
 
-                        // let edit = ui
-                        //     .text_edit_singleline(&mut self.input)
-                        //     .labelled_by(prompt.id);
-
                         edit.request_focus();
 
                         if edit.changed() {
@@ -151,7 +155,11 @@ impl eframe::App for Emenu {
                                 &self.input,
                                 nucleo::pattern::CaseMatching::Smart,
                                 false,
-                            )
+                            );
+
+                            // Clear the first_idx and selected_idx on new input
+                            self.first_idx = 0;
+                            self.selected_idx = 0;
                         }
                     });
 
@@ -162,42 +170,88 @@ impl eframe::App for Emenu {
                     let matched_count = snap.matched_item_count();
 
                     ui.horizontal(|ui| {
-                        ui.label(format!("({matched_count}/{total_count})"));
+                        ui.label(format!("{matched_count}/{total_count}"));
                         ui.add(Separator::default().horizontal());
                     });
 
                     ui.add_space(4.0);
 
-                    // Move current pointer
-                    if ctx.input(|i| i.modifiers.matches(Modifiers::CTRL) && i.key_pressed(Key::N))
-                    {
-                        self.selected_idx = self.selected_idx.saturating_add(1);
-                    }
+                    let mut view_rows = 0;
 
-                    if ctx.input(|i| i.modifiers.matches(Modifiers::CTRL) && i.key_pressed(Key::P))
-                    {
-                        self.selected_idx = self.selected_idx.saturating_sub(1);
-                    }
-
-                    // Prevent the selected_idx from overflowing
-                    self.selected_idx = self.selected_idx.min(matched_count.saturating_sub(1));
-
-                    egui::ScrollArea::vertical().show(ui, |ui| {
-                        snap.matched_items(..snap.matched_item_count().min(20))
+                    // dbg!(ui.min_rect());
+                    ui.vertical(|ui| {
+                        for (i, matched) in snap
+                            .matched_items(self.first_idx..snap.matched_item_count())
                             .enumerate()
-                            .for_each(|(i, matched)| {
-                                ui.label(format!(
-                                    "{:<2}{}",
+                        {
+                            if ui.available_height() < 10.0 {
+                                break;
+                            }
+
+                            view_rows += 1;
+
+                            let char_size = ui.fonts(|f| f.glyph_width(&self.font_id, ' '));
+                            let max_chars =
+                                (ui.max_rect().width() / char_size).trunc() as usize - 2;
+
+                            let match_string = matched.data;
+
+                            let dots = if match_string.chars().count() > max_chars {
+                                "…"
+                            } else {
+                                ""
+                            };
+
+                            let entry = ui.add(
+                                egui::Label::new(format!(
+                                    "{:<2}{}{dots}",
                                     if i == self.selected_idx as usize {
                                         &self.pointer
                                     } else {
                                         ""
                                     },
-                                    matched.data,
-                                ));
-                            });
+                                    match_string.char_range(0..max_chars),
+                                ))
+                                .sense(Sense::click())
+                                .wrap(false),
+                            );
+
+                            if entry.clicked() {
+                                self.selected_idx = i as u32;
+                            }
+
+                            if entry.double_clicked() {
+                                todo!()
+                            }
+                        }
                     });
 
+                    // Move current pointer with ctrl + p/n or mouse wheel
+                    if (ctx
+                        .input(|i| i.modifiers.matches(Modifiers::CTRL) && i.key_pressed(Key::N)))
+                        || (ui.ui_contains_pointer() && ctx.input(|i| i.scroll_delta.y < 0.0))
+                    {
+                        if self.selected_idx > (view_rows - 2) {
+                            self.first_idx += 1;
+                        } else {
+                            self.selected_idx = self.selected_idx.saturating_add(1);
+                        }
+                    }
+
+                    if (ctx
+                        .input(|i| i.modifiers.matches(Modifiers::CTRL) && i.key_pressed(Key::P)))
+                        || (ui.ui_contains_pointer() && ctx.input(|i| i.scroll_delta.y > 0.0))
+                    {
+                        if self.first_idx != 0 && self.selected_idx == 0 {
+                            self.first_idx -= 1;
+                        }
+                        self.selected_idx = self.selected_idx.saturating_sub(1);
+                    }
+
+                    // Prevent the selected_idx from overflowing
+                    self.selected_idx = self.selected_idx.min(view_rows.saturating_sub(1));
+
+                    // Handle enter
                     if ctx.input(|i| i.key_pressed(Key::Enter)) {
                         if let Some(item) = snap.get_matched_item(self.selected_idx as u32) {
                             print!("{}", item.data)
