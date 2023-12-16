@@ -7,7 +7,7 @@ use std::{io::stdin, process::exit, sync::Arc, thread, time::Duration};
 
 use clap::Parser;
 use eframe::{
-    egui::{self, Key, Modifiers, Sense, Separator, TextBuffer},
+    egui::{self, EventFilter, Key, Modifiers, Sense, Separator, TextBuffer},
     epaint::{Color32, FontId},
 };
 use nucleo::Nucleo;
@@ -151,7 +151,19 @@ impl eframe::App for Emenu {
                             edit = edit.labelled_by(prompt.id);
                         }
 
+                        // Prevent other widgets from taking focus
                         edit.request_focus();
+
+                        ui.memory_mut(|m| {
+                            m.set_focus_lock_filter(
+                                edit.id,
+                                EventFilter {
+                                    tab: true,
+                                    arrows: true,
+                                    escape: true,
+                                },
+                            )
+                        });
 
                         if edit.changed() {
                             self.nucleo.pattern.reparse(
@@ -243,12 +255,13 @@ impl eframe::App for Emenu {
                         }
                     });
 
-                    // Move current pointer with ctrl + p/n or mouse wheel
+                    // Move current pointer with ctrl + p/n, arrows or mouse wheel
                     let tab_multi =
                         ctx.input(|i| i.key_pressed(Key::Tab)) && self.output_number > 1;
                     if view_rows > 0
                         && ((ctx.input(|i| {
-                            i.modifiers.matches(Modifiers::CTRL) && i.key_pressed(Key::N)
+                            (i.modifiers.matches(Modifiers::CTRL) && i.key_pressed(Key::N))
+                                || i.key_pressed(Key::ArrowDown)
                         })) || (ui.ui_contains_pointer()
                             && ctx.input(|i| i.scroll_delta.y < 0.0))
                             || tab_multi)
@@ -269,7 +282,8 @@ impl eframe::App for Emenu {
 
                     if view_rows > 0
                         && ((ctx.input(|i| {
-                            i.modifiers.matches(Modifiers::CTRL) && i.key_pressed(Key::P)
+                            (i.modifiers.matches(Modifiers::CTRL) && i.key_pressed(Key::P))
+                                || i.key_pressed(Key::ArrowUp)
                         })) || (ui.ui_contains_pointer()
                             && ctx.input(|i| i.scroll_delta.y > 0.0)))
                     {
