@@ -64,11 +64,12 @@ fn main() -> Result<(), eframe::Error> {
         options,
         Box::new(|cc| {
             let ctx = &cc.egui_ctx;
-            ctx.set_pixels_per_point(1.25);
+            ctx.set_pixels_per_point(1.225);
             // ctx.set_fonts(FontDefinitions::)
             let font = egui::FontId {
                 size: 13.0,
                 family: egui::FontFamily::Monospace,
+                ..FontId::default()
             };
             ctx.set_style(egui::style::Style {
                 override_font_id: Some(font.clone()),
@@ -127,12 +128,17 @@ impl eframe::App for Emenu {
 
         self.keyboard_events_exit(ctx, _frame);
 
+        // ctx.fonts(|f| dbg!(f.pixels_per_point()));
+
+        let inner_margin = 8.0;
+
         egui::CentralPanel::default()
             .frame(
                 egui::Frame::default()
                     .stroke((1.0, Color32::GRAY))
-                    .inner_margin(8.0)
-                    .outer_margin(4.0),
+                    .inner_margin(inner_margin)
+                    .outer_margin(4.0)
+                    .rounding(2.0),
             )
             .show(ctx, |ui| {
                 ui.vertical(|ui| {
@@ -200,6 +206,7 @@ impl eframe::App for Emenu {
                     ui.add_space(4.0);
 
                     let mut view_rows: u32 = 0;
+                    // let char_width = get_mono_char_width(ui, &self.font_id, inner_margin);
 
                     ui.vertical(|ui| {
                         for (i, matched) in snap
@@ -226,8 +233,10 @@ impl eframe::App for Emenu {
                             let pointer_len = self.pointer.chars().count();
                             let marker_len = self.marker.chars().count();
 
-                            let max_chars =
-                                get_mono_char_width(ui, &self.font_id) - (marker_len + pointer_len);
+                            // TODO: get the correct amount of characters that fit
+                            // let max_chars = char_width - (marker_len + pointer_len);
+                            let max_chars = get_mono_char_width(ui, &self.font_id, inner_margin)
+                                - (marker_len + pointer_len);
 
                             let ellipsis = if match_string.chars().count() > max_chars {
                                 self.ellipsis.to_string()
@@ -335,7 +344,8 @@ impl Emenu {
     }
 }
 
-fn get_mono_char_width(ui: &mut egui::Ui, font_id: &FontId) -> usize {
+fn get_mono_char_width(ui: &mut egui::Ui, font_id: &FontId, inner_margin: f32) -> usize {
     let char_size = ui.fonts(|f| f.glyph_width(font_id, ' '));
-    (ui.max_rect().width() / char_size).trunc() as usize
+    ((ui.max_rect().width() - inner_margin * 2.0) / char_size).round() as usize
+    // ((ui.available_width() - inner_margin * 2.0) / char_size).round() as usize
 }
