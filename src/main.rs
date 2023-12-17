@@ -9,6 +9,7 @@ use clap::Parser;
 use eframe::{
     egui::{self, EventFilter, Key, Modifiers, Sense, Separator, TextBuffer},
     epaint::{Color32, FontId},
+    HardwareAcceleration,
 };
 use nucleo::Nucleo;
 
@@ -48,13 +49,18 @@ fn main() -> Result<(), eframe::Error> {
         }
     });
 
+    let window_height = 510.0;
+    let window_width = 480.0;
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_always_on_top()
             .with_decorations(false)
             .with_resizable(false)
-            .with_inner_size([480.0, 510.0]),
+            .with_inner_size([window_width, window_height])
+            .with_max_inner_size((window_width, window_height)),
         centered: true,
+        hardware_acceleration: HardwareAcceleration::Required,
         ..Default::default()
     };
 
@@ -93,7 +99,7 @@ struct Emenu {
     first_idx: u32,
     output_number: usize, // rx: mpsc::Receiver<bool>,
     multi_output: Vec<String>,
-    font_id: FontId,
+    _font_id: FontId,
 }
 
 impl Emenu {
@@ -111,7 +117,7 @@ impl Emenu {
             output_number: 1,
             // output_number: cli.multi.unwrap_or(1),
             multi_output: vec![],
-            font_id,
+            _font_id: font_id,
         }
     }
 }
@@ -191,29 +197,35 @@ impl eframe::App for Emenu {
                     let total_count = snap.item_count();
                     let matched_count = snap.matched_item_count();
 
-                    ui.horizontal(|ui| {
-                        ui.label(format!(
-                            "{matched_count}/{total_count}{}",
-                            if self.output_number > 1 {
-                                format!("({})", self.multi_output.len())
-                            } else {
-                                "".to_string()
-                            }
-                        ));
+                    let count_string = format!(
+                        "{matched_count}/{total_count}{}",
+                        if self.output_number > 1 {
+                            format!("({})", self.multi_output.len())
+                        } else {
+                            "".to_string()
+                        }
+                    );
+
+                    let count_label = ui.horizontal(|ui| {
+                        let count_label = ui.label(&count_string);
                         ui.add(Separator::default().horizontal());
+                        count_label
                     });
 
                     ui.add_space(4.0);
 
+                    // Get the width of a single char to truncate the matched items
+                    let char_width = count_label.inner.rect.width() / (count_string.len() as f32);
+                    let char_height = count_label.inner.rect.height();
+
                     let mut view_rows: u32 = 0;
-                    // let char_width = get_mono_char_width(ui, &self.font_id, inner_margin);
 
                     ui.vertical(|ui| {
                         for (i, matched) in snap
                             .matched_items(self.first_idx..snap.matched_item_count())
                             .enumerate()
                         {
-                            if ui.available_height() < 10.0 {
+                            if ui.available_height() < char_height {
                                 break;
                             }
 
@@ -234,8 +246,7 @@ impl eframe::App for Emenu {
                             let marker_len = self.marker.chars().count();
 
                             // TODO: get the correct amount of characters that fit
-                            // let max_chars = char_width - (marker_len + pointer_len);
-                            let max_chars = get_mono_char_width(ui, &self.font_id, inner_margin)
+                            let max_chars = get_max_chars_in_ui(ui, char_width, inner_margin)
                                 - (marker_len + pointer_len);
 
                             let ellipsis = if match_string.chars().count() > max_chars {
@@ -344,8 +355,7 @@ impl Emenu {
     }
 }
 
-fn get_mono_char_width(ui: &mut egui::Ui, font_id: &FontId, inner_margin: f32) -> usize {
-    let char_size = ui.fonts(|f| f.glyph_width(font_id, ' '));
-    ((ui.max_rect().width() - inner_margin * 2.0) / char_size).round() as usize
-    // ((ui.available_width() - inner_margin * 2.0) / char_size).round() as usize
+fn get_max_chars_in_ui(ui: &mut egui::Ui, char_width: f32, inner_margin: f32) -> usize {
+    // let char_width = ui.fonts(|f| f.glyph_width(font_id, ' '));
+    ((ui.max_rect().width() - inner_margin * 2.0) / char_width).round() as usize
 }
