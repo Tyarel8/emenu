@@ -5,6 +5,9 @@ pub struct Cli {
     /// Exit immediately when there's no match
     #[arg(long = "exit-0", short = '0')]
     pub exit_if_empty: bool,
+    /// Exit when the window loses focus
+    #[arg(long)]
+    pub exit_lost_focus: bool,
     /// Case-insensitive match (default: smart-case match)
     #[arg(short = 'i')]
     pub case_insensitive: bool,

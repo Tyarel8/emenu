@@ -95,6 +95,8 @@ struct Emenu {
     pointer: String,
     ellipsis: char,
     cycle: bool,
+    exit_lost_focus: bool,
+    has_focus: bool,
     selected_idx: u32,
     first_idx: u32,
     output_number: usize, // rx: mpsc::Receiver<bool>,
@@ -111,6 +113,8 @@ impl Emenu {
             pointer: cli.pointer,
             ellipsis: cli.ellipsis,
             cycle: cli.cycle,
+            exit_lost_focus: cli.exit_lost_focus,
+            has_focus: false,
             input: String::new(),
             selected_idx: 0,
             first_idx: 0,
@@ -347,11 +351,15 @@ impl Emenu {
             exit(0)
         }
 
-        // Print result and exit on enter
-        // if ctx.input(|i| i.key_pressed(Key::Enter)) {
-        //     // exit(0)
-        //     dbg!("Enter pressed");
-        // }
+        // Exit when focuse is lost if activated
+        match ctx.input(|i| i.focused) {
+            true => self.has_focus = true,
+            false => {
+                if self.exit_lost_focus && self.has_focus {
+                    exit(0)
+                }
+            }
+        }
     }
 }
 
