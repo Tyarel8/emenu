@@ -175,14 +175,18 @@ impl eframe::App for Emenu {
                 ui.vertical(|ui| {
                     ui.horizontal(|ui| {
                         let prompt = if !self.prompt.is_empty() {
-                            Some(ui.label(&self.prompt))
+                            Some(ui.add_sized(
+                                [ui.available_height(), 0.0],
+                                egui::Label::new(&self.prompt),
+                            ))
                         } else {
                             None
                         };
 
-                        let mut edit = ui.add_sized(ui.available_size(), {
-                            egui::TextEdit::singleline(&mut self.input)
-                        });
+                        let mut edit = ui.add_sized(
+                            ui.available_size(),
+                            egui::TextEdit::singleline(&mut self.input),
+                        );
 
                         if let Some(prompt) = prompt {
                             edit = edit.labelled_by(prompt.id);
@@ -216,7 +220,7 @@ impl eframe::App for Emenu {
                         }
                     });
 
-                    ui.add_space(4.0);
+                    ui.add_space(8.0);
 
                     let snap = self.nucleo.snapshot();
                     let total_count = snap.item_count();
@@ -233,7 +237,11 @@ impl eframe::App for Emenu {
 
                     let count_label = ui.horizontal(|ui| {
                         let count_label = ui.label(&count_string);
-                        ui.add(Separator::default().horizontal());
+                        ui.add(
+                            Separator::default()
+                                .horizontal()
+                                .spacing(count_label.rect.height()),
+                        );
                         count_label
                     });
 
