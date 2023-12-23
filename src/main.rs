@@ -3,14 +3,16 @@
 // hide console window on Windows in release
 // #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use anyhow::{anyhow, ensure};
 use std::{io::stdin, process::exit, sync::Arc, thread, time::Duration};
 
 use clap::Parser;
 use eframe::{
-    egui::{self, EventFilter, Key, Modifiers, Sense, Separator, TextBuffer},
+    egui::{self, EventFilter, FontData, Key, Modifiers, Sense, Separator, TextBuffer},
     epaint::{Color32, FontId},
     HardwareAcceleration,
 };
+use font_kit::{family_name::FamilyName, source::SystemSource};
 use nucleo::Nucleo;
 
 mod cli;
@@ -49,8 +51,10 @@ fn main() -> Result<(), eframe::Error> {
         }
     });
 
-    let window_height = 510.0;
-    let window_width = 480.0;
+    let window_height = cli.window_height;
+    let window_width = cli.window_width;
+    // let window_height = 510.0;
+    // let window_width = 480.0;
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -64,18 +68,37 @@ fn main() -> Result<(), eframe::Error> {
         ..Default::default()
     };
 
-    // let mul = cli.multi.clone();
     eframe::run_native(
         "emenu",
         options,
         Box::new(|cc| {
             let ctx = &cc.egui_ctx;
-            ctx.set_pixels_per_point(1.225);
+
+            if let Some(font_family) = cli.font.clone() {
+                let font_data = get_font_data(&font_family)
+                    .map_err(|e| {
+                        eprintln!("Error loading the font `{font_family}`: {e}");
+                        exit(1);
+                    })
+                    .unwrap();
+                let mut fonts = egui::FontDefinitions::default();
+                fonts.font_data.insert(font_family.clone(), font_data);
+
+                fonts
+                    .families
+                    .entry(egui::FontFamily::Monospace)
+                    .or_default()
+                    .insert(0, font_family.clone());
+
+                ctx.set_fonts(fonts);
+            }
+
+            // ctx.set_pixels_per_point(1.225);
             // ctx.set_fonts(FontDefinitions::)
             let font = egui::FontId {
-                size: 13.0,
+                // size: 13.0,
+                size: cli.font_size,
                 family: egui::FontFamily::Monospace,
-                ..FontId::default()
             };
             ctx.set_style(egui::style::Style {
                 override_font_id: Some(font.clone()),
@@ -99,7 +122,7 @@ struct Emenu {
     has_focus: bool,
     selected_idx: u32,
     first_idx: u32,
-    output_number: usize, // rx: mpsc::Receiver<bool>,
+    output_number: usize,
     multi_output: Vec<String>,
     _font_id: FontId,
 }
@@ -128,9 +151,7 @@ impl Emenu {
 
 impl eframe::App for Emenu {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // if let Ok(true) = self.rx.try_recv() {
         let snapshot_changed = self.nucleo.tick(10).changed;
-        // }
 
         if snapshot_changed {
             ctx.request_repaint_after(Duration::from_secs(1));
@@ -351,7 +372,7 @@ impl Emenu {
             exit(0)
         }
 
-        // Exit when focuse is lost if activated
+        // Exit when focus is lost if activated
         match ctx.input(|i| i.focused) {
             true => self.has_focus = true,
             false => {
@@ -363,7 +384,36 @@ impl Emenu {
     }
 }
 
+fn get_font_data(font_name: &str) -> anyhow::Result<FontData> {
+    let font = SystemSource::new()
+        .select_best_match(
+            &[FamilyName::Title(font_name.to_string())],
+            &font_kit::properties::Properties::default(),
+        )?
+        .load()?;
+
+    ensure!(font.is_monospace(), "Font is not monospaced");
+
+    let font_data = font.copy_font_data().ok_or(anyhow!("No font data"))?;
+
+    Ok(FontData::from_owned((*font_data).clone()))
+}
+
 fn get_max_chars_in_ui(ui: &mut egui::Ui, char_width: f32, inner_margin: f32) -> usize {
     // let char_width = ui.fonts(|f| f.glyph_width(font_id, ' '));
     ((ui.max_rect().width() - inner_margin * 2.0) / char_width).round() as usize
+}
+
+fn fuzzy_search_highlight(search: &str, match_str: &str) -> Vec<usize> {
+    let mut indices = Vec::new();
+    let mut start_index = 0;
+
+    for search_char in search.chars() {
+        if let Some(index) = match_str[start_index..].find(search_char) {
+            start_index += index + 1;
+            indices.push(index);
+        }
+    }
+
+    indices
 }

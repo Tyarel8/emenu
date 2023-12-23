@@ -35,4 +35,16 @@ pub struct Cli {
     /// Ellipsis to show when line is truncated
     #[arg(long, default_value_t = '…')]
     pub ellipsis: char,
+    /// Set font size
+    #[arg(long, default_value_t = 16.0)]
+    pub font_size: f32,
+    /// Set font family (must be monospaced)
+    #[arg(long)]
+    pub font: Option<String>,
+    /// Set window height
+    #[arg(long, default_value_t = 510.0)]
+    pub window_height: f32,
+    /// Set window width
+    #[arg(long, default_value_t = 480.0)]
+    pub window_width: f32,
 }
