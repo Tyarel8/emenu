@@ -176,6 +176,7 @@ impl eframe::App for Emenu {
                     ui.horizontal(|ui| {
                         let prompt = if !self.prompt.is_empty() {
                             Some(ui.add_sized(
+                                // Use available height to center label
                                 [ui.available_height(), 0.0],
                                 egui::Label::new(&self.prompt),
                             ))
@@ -185,7 +186,8 @@ impl eframe::App for Emenu {
 
                         let mut edit = ui.add_sized(
                             ui.available_size(),
-                            egui::TextEdit::singleline(&mut self.input),
+                            egui::TextEdit::singleline(&mut self.input)
+                                .vertical_align(egui::Align::Center),
                         );
 
                         if let Some(prompt) = prompt {
