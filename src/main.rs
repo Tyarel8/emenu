@@ -16,6 +16,7 @@ use font_kit::{family_name::FamilyName, source::SystemSource};
 use nucleo::Nucleo;
 
 mod cli;
+mod layout;
 
 // TODO: proper theme, config, multimode, highlight searched in matches
 fn main() -> Result<(), eframe::Error> {
@@ -116,7 +117,6 @@ struct Emenu {
     prompt: String,
     marker: String,
     pointer: String,
-    ellipsis: char,
     cycle: bool,
     exit_lost_focus: bool,
     has_focus: bool,
@@ -124,7 +124,7 @@ struct Emenu {
     first_idx: u32,
     output_number: usize,
     multi_output: Vec<String>,
-    _font_id: FontId,
+    font_id: FontId,
 }
 
 impl Emenu {
@@ -134,7 +134,6 @@ impl Emenu {
             prompt: cli.prompt,
             marker: cli.marker,
             pointer: cli.pointer,
-            ellipsis: cli.ellipsis,
             cycle: cli.cycle,
             exit_lost_focus: cli.exit_lost_focus,
             has_focus: false,
@@ -144,7 +143,7 @@ impl Emenu {
             output_number: 1,
             // output_number: cli.multi.unwrap_or(1),
             multi_output: vec![],
-            _font_id: font_id,
+            font_id,
         }
     }
 }
@@ -228,6 +227,8 @@ impl eframe::App for Emenu {
                     let total_count = snap.item_count();
                     let matched_count = snap.matched_item_count();
 
+                    // dbg!(snap.pattern());
+
                     let count_string = format!(
                         "{matched_count}/{total_count}{}",
                         if self.output_number > 1 {
@@ -269,13 +270,13 @@ impl eframe::App for Emenu {
                             let match_string = matched.data;
 
                             let pointer = if i == self.selected_idx as usize {
-                                &self.pointer
+                                self.pointer.clone()
                             } else {
-                                ""
+                                " ".repeat(self.pointer.chars().count())
                             };
 
                             // TODO: marker
-                            let marker = "";
+                            let marker = " ";
 
                             let pointer_len = self.pointer.chars().count();
                             let marker_len = self.marker.chars().count();
@@ -283,18 +284,30 @@ impl eframe::App for Emenu {
                             // TODO: get the correct amount of characters that fit
                             let max_chars = get_max_chars_in_ui(ui, char_width, inner_margin)
                                 - (marker_len + pointer_len);
+                            // let max_chars = get_max_chars_in_ui(ui, char_width, inner_margin);
 
                             let ellipsis = if match_string.chars().count() > max_chars {
-                                self.ellipsis.to_string()
+                                '…'.to_string()
                             } else {
                                 "".to_string()
                             };
 
+                            // let layout = layout::create_layout(
+                            //     &self.input,
+                            //     match_string,
+                            //     &pointer,
+                            //     marker,
+                            //     max_chars,
+                            //     self.font_id.clone(),
+                            // );
+
                             let entry = ui.add(
-                                egui::Label::new(format!(
-                                    "{pointer:>pointer_len$}{marker:>marker_len$}{}{ellipsis}",
-                                    match_string.char_range(0..max_chars),
-                                ))
+                                egui::Label::new(
+                                    format!(
+                                        "{pointer}{marker}{}{ellipsis}",
+                                        match_string.char_range(0..max_chars),
+                                    ), // layout,
+                                )
                                 .sense(Sense::click())
                                 .wrap(false),
                             );
@@ -412,18 +425,4 @@ fn get_font_data(font_name: &str) -> anyhow::Result<FontData> {
 fn get_max_chars_in_ui(ui: &mut egui::Ui, char_width: f32, inner_margin: f32) -> usize {
     // let char_width = ui.fonts(|f| f.glyph_width(font_id, ' '));
     ((ui.max_rect().width() - inner_margin * 2.0) / char_width).round() as usize
-}
-
-fn fuzzy_search_highlight(search: &str, match_str: &str) -> Vec<usize> {
-    let mut indices = Vec::new();
-    let mut start_index = 0;
-
-    for search_char in search.chars() {
-        if let Some(index) = match_str[start_index..].find(search_char) {
-            start_index += index + 1;
-            indices.push(index);
-        }
-    }
-
-    indices
 }

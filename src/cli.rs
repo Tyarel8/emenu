@@ -32,9 +32,9 @@ pub struct Cli {
     // /// Reverse the order of the input
     // #[arg(long)]
     // pub tac: bool,
-    /// Ellipsis to show when line is truncated
-    #[arg(long, default_value_t = '…')]
-    pub ellipsis: char,
+    // /// Ellipsis to show when line is truncated
+    // #[arg(long, default_value_t = '…')]
+    // pub ellipsis: char,
     /// Set font size
     #[arg(long, default_value_t = 16.0)]
     pub font_size: f32,
