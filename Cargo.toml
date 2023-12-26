@@ -1,6 +1,6 @@
 [package]
 name = "emenu"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -11,7 +11,7 @@ atty = "0.2.14"
 clap = { version = "4.4.11", features = ["derive"] }
 eframe = "0.24.1"
 font-kit = "0.12.0"
-nucleo = "0.2.1"
+nucleo = "0.3"
 
 [profile.release]
 opt-level = 3

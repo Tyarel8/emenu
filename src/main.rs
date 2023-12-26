@@ -13,7 +13,7 @@ use eframe::{
     HardwareAcceleration,
 };
 use font_kit::{family_name::FamilyName, source::SystemSource};
-use nucleo::Nucleo;
+use nucleo::{pattern::Normalization, Nucleo};
 
 mod cli;
 mod layout;
@@ -212,6 +212,7 @@ impl eframe::App for Emenu {
                                 0,
                                 &self.input,
                                 nucleo::pattern::CaseMatching::Smart,
+                                Normalization::Smart,
                                 false,
                             );
 
@@ -278,35 +279,36 @@ impl eframe::App for Emenu {
                             // TODO: marker
                             let marker = " ";
 
-                            let pointer_len = self.pointer.chars().count();
-                            let marker_len = self.marker.chars().count();
+                            // let pointer_len = self.pointer.chars().count();
+                            // let marker_len = self.marker.chars().count();
 
                             // TODO: get the correct amount of characters that fit
-                            let max_chars = get_max_chars_in_ui(ui, char_width, inner_margin)
-                                - (marker_len + pointer_len);
-                            // let max_chars = get_max_chars_in_ui(ui, char_width, inner_margin);
+                            // let max_chars = get_max_chars_in_ui(ui, char_width, inner_margin)
+                            //     - (marker_len + pointer_len);
+                            let max_chars = get_max_chars_in_ui(ui, char_width, inner_margin);
 
-                            let ellipsis = if match_string.chars().count() > max_chars {
-                                '…'.to_string()
-                            } else {
-                                "".to_string()
-                            };
+                            // let ellipsis = if match_string.chars().count() > max_chars {
+                            //     '…'.to_string()
+                            // } else {
+                            //     "".to_string()
+                            // };
 
-                            // let layout = layout::create_layout(
-                            //     &self.input,
-                            //     match_string,
-                            //     &pointer,
-                            //     marker,
-                            //     max_chars,
-                            //     self.font_id.clone(),
-                            // );
+                            let layout = layout::create_layout(
+                                &self.input,
+                                match_string,
+                                &pointer,
+                                marker,
+                                max_chars,
+                                self.font_id.clone(),
+                            );
 
                             let entry = ui.add(
                                 egui::Label::new(
-                                    format!(
-                                        "{pointer}{marker}{}{ellipsis}",
-                                        match_string.char_range(0..max_chars),
-                                    ), // layout,
+                                    // format!(
+                                    //     "{pointer}{marker}{}{ellipsis}",
+                                    //     match_string.char_range(0..max_chars),
+                                    // ),
+                                    layout,
                                 )
                                 .sense(Sense::click())
                                 .wrap(false),
