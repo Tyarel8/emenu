@@ -114,25 +114,32 @@ pub fn create_layout(
 
 // TODO: fix this, should split input in words and match better like fzf
 fn fuzzy_search_highlight(search: &str, match_str: &str) -> Vec<usize> {
-    let search = search.replace(' ', "");
+    let search_words = search.trim().to_lowercase();
+    let match_str = match_str.to_lowercase();
+
     let mut indices = Vec::new();
     let mut start_index;
 
-    for search_char in search.chars() {
+    for s_word in search_words.split_whitespace() {
         start_index = 0;
 
-        loop {
-            if let Some(index) = match_str[start_index..].find(search_char) {
-                if indices.contains(&(start_index + index)) {
+        for search_char in s_word.chars() {
+            loop {
+                if let Some(index) = match_str.char_range(start_index..usize::MAX).chars()                    
+                    .position(|x| x == search_char)
+                {
+                    if indices.contains(&(start_index + index)) {
+                        start_index += index + 1;
+                        continue;
+                    }
+
+                    indices.push(start_index + index);
                     start_index += index + 1;
-                    continue;
+                    break;
                 }
 
-                indices.push(start_index + index);
                 break;
             }
-
-            break;
         }
     }
 
@@ -151,7 +158,7 @@ mod tests {
 
         assert_eq!(
             fuzzy_search_highlight("aihh", "There shall be neither light nor safety"),
-            vec![8, 17, 1, 7]
+            vec![8, 17, 19, 26]
         );
 
         assert_eq!(

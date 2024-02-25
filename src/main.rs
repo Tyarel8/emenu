@@ -8,7 +8,7 @@ use std::{io::stdin, process::exit, sync::Arc, thread, time::Duration};
 
 use clap::Parser;
 use eframe::{
-    egui::{self, EventFilter, FontData, Key, Modifiers, Sense, Separator, TextBuffer},
+    egui::{self, EventFilter, FontData, Key, Modifiers, Sense, Separator},
     epaint::{Color32, FontId},
     HardwareAcceleration,
 };
