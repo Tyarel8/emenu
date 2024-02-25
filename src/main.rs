@@ -44,7 +44,7 @@ fn main() -> Result<(), eframe::Error> {
     // TODO: nucleo has to add support for --tac
     thread::spawn(move || {
         if atty::isnt(atty::Stream::Stdin) {
-            stdin().lines().flatten().for_each(|s| {
+            stdin().lines().map_while(Result::ok).for_each(|s| {
                 inj.push(s.clone(), |c| {
                     c[0] = s.into();
                 });
@@ -201,8 +201,9 @@ impl eframe::App for Emenu {
                                 edit.id,
                                 EventFilter {
                                     tab: true,
-                                    arrows: true,
                                     escape: true,
+                                    horizontal_arrows: true,
+                                    vertical_arrows: true,
                                 },
                             )
                         });
@@ -330,10 +331,10 @@ impl eframe::App for Emenu {
                         ctx.input(|i| i.key_pressed(Key::Tab)) && self.output_number > 1;
                     if view_rows > 0
                         && ((ctx.input(|i| {
-                            (i.modifiers.matches(Modifiers::CTRL) && i.key_pressed(Key::N))
+                            (i.modifiers.matches_exact(Modifiers::CTRL) && i.key_pressed(Key::N))
                                 || i.key_pressed(Key::ArrowDown)
                         })) || (ui.ui_contains_pointer()
-                            && ctx.input(|i| i.scroll_delta.y < 0.0))
+                            && ctx.input(|i| i.raw_scroll_delta.y < 0.0))
                             || tab_multi)
                     {
                         // if tab_multi {}
@@ -352,10 +353,10 @@ impl eframe::App for Emenu {
 
                     if view_rows > 0
                         && ((ctx.input(|i| {
-                            (i.modifiers.matches(Modifiers::CTRL) && i.key_pressed(Key::P))
+                            (i.modifiers.matches_exact(Modifiers::CTRL) && i.key_pressed(Key::P))
                                 || i.key_pressed(Key::ArrowUp)
                         })) || (ui.ui_contains_pointer()
-                            && ctx.input(|i| i.scroll_delta.y > 0.0)))
+                            && ctx.input(|i| i.raw_scroll_delta.y > 0.0)))
                     {
                         if self.first_idx != 0 && self.selected_idx == 0 {
                             self.first_idx -= 1;
@@ -389,7 +390,7 @@ impl eframe::App for Emenu {
 impl Emenu {
     fn keyboard_events_exit(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // exit on ctrl+c or esc
-        if ctx.input(|i| i.modifiers.matches(Modifiers::CTRL) && i.key_pressed(Key::C)) {
+        if ctx.input(|i| i.modifiers.matches_exact(Modifiers::CTRL) && i.key_pressed(Key::C)) {
             exit(0)
         }
 

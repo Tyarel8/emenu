@@ -29,7 +29,7 @@ pub fn create_layout(
 
     // figure out start and end indices
     let keep_chars_on_right = 5;
-    if match_str_len > max_characters && highlight_indices.len() > 0 {
+    if match_str_len > max_characters && !highlight_indices.is_empty() {
         let last_highlight = highlight_indices.iter().max().unwrap();
 
         if last_highlight > &(max_characters - keep_chars_on_right) {
@@ -125,7 +125,9 @@ fn fuzzy_search_highlight(search: &str, match_str: &str) -> Vec<usize> {
 
         for search_char in s_word.chars() {
             loop {
-                if let Some(index) = match_str.char_range(start_index..usize::MAX).chars()                    
+                if let Some(index) = match_str
+                    .char_range(start_index..usize::MAX)
+                    .chars()
                     .position(|x| x == search_char)
                 {
                     if indices.contains(&(start_index + index)) {

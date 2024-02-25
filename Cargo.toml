@@ -6,12 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.76"
+anyhow = "1.0.80"
 atty = "0.2.14"
 clap = { version = "4.4.11", features = ["derive"] }
-eframe = "0.24.1"
+eframe = "0.26.2"
 font-kit = "0.12.0"
-nucleo = "0.3"
+nucleo = "0.4"
 
 [profile.release]
 opt-level = 3
