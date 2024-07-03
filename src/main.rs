@@ -106,7 +106,7 @@ fn main() -> Result<(), eframe::Error> {
                 ..Default::default()
             });
 
-            Box::new(Emenu::new(nucleo, cli, font))
+            Ok(Box::new(Emenu::new(nucleo, cli, font)))
         }),
     )
 }
@@ -312,7 +312,7 @@ impl eframe::App for Emenu {
                                     layout,
                                 )
                                 .sense(Sense::click())
-                                .wrap(false),
+                                .wrap_mode(egui::TextWrapMode::Truncate),
                             );
 
                             if entry.clicked() {
