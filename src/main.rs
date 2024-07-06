@@ -15,6 +15,11 @@ use eframe::{
 use font_kit::{family_name::FamilyName, source::SystemSource};
 use nucleo::{pattern::Normalization, Nucleo};
 
+use mimalloc::MiMalloc;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
+
 mod cli;
 mod layout;
 
