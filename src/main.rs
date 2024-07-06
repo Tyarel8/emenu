@@ -375,7 +375,9 @@ impl eframe::App for Emenu {
 
                     // Handle enter
                     if ctx.input(|i| i.key_pressed(Key::Enter)) {
-                        if let Some(item) =
+                        if total_count == 0 {
+                            print!("{}", self.input)
+                        } else if let Some(item) =
                             snap.get_matched_item(self.first_idx + self.selected_idx)
                         {
                             print!("{}", item.data)
