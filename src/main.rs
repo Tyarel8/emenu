@@ -50,8 +50,8 @@ fn main() -> Result<(), eframe::Error> {
     thread::spawn(move || {
         if atty::isnt(atty::Stream::Stdin) {
             stdin().lines().map_while(Result::ok).for_each(|s| {
-                inj.push(s.clone(), |c| {
-                    c[0] = s.into();
+                inj.push(s, |s_ref, c| {
+                    c[0] = s_ref.clone().into();
                 });
             })
         }
