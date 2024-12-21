@@ -88,7 +88,9 @@ fn main() -> Result<(), eframe::Error> {
                     })
                     .unwrap();
                 let mut fonts = egui::FontDefinitions::default();
-                fonts.font_data.insert(font_family.clone(), font_data);
+                fonts
+                    .font_data
+                    .insert(font_family.clone(), font_data.into());
 
                 fonts
                     .families
