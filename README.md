@@ -17,3 +17,5 @@ return the selected option(s) when you choose.
 ```sh
 "one\ntwo\nthree" | emenu | cat
 ```
+
+![image](https://github.com/user-attachments/assets/0e61da19-7e75-405a-a0cb-462dfd9752fa)
