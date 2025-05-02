@@ -17,7 +17,7 @@ pub struct Cli {
     /// Enable cyclic scroll
     #[arg(long)]
     pub cycle: bool,
-    // /// Enable multi-select with tab/shift-tab
+    /// Enable multi-select with tab/shift-tab (takes optional limit to the number of matches)
     #[arg(long, short, num_args = 0..=1, default_missing_value = "999999999")]
     pub multi: Option<usize>,
     /// Input prompt
