@@ -18,8 +18,8 @@ pub struct Cli {
     #[arg(long)]
     pub cycle: bool,
     // /// Enable multi-select with tab/shift-tab
-    // #[arg(long, short)]
-    // pub multi: Option<usize>,
+    #[arg(long, short, num_args = 0..=1, default_missing_value = "999999999")]
+    pub multi: Option<usize>,
     /// Input prompt
     #[arg(long, default_value_t = String::from(""))]
     pub prompt: String,

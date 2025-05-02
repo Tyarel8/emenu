@@ -15,11 +15,6 @@ use eframe::{
 use font_kit::{family_name::FamilyName, source::SystemSource};
 use nucleo::{pattern::Normalization, Nucleo};
 
-use mimalloc::MiMalloc;
-
-#[global_allocator]
-static GLOBAL: MiMalloc = MiMalloc;
-
 mod cli;
 mod layout;
 
@@ -49,18 +44,20 @@ fn main() -> Result<(), eframe::Error> {
     // TODO: nucleo has to add support for --tac
     thread::spawn(move || {
         if atty::isnt(atty::Stream::Stdin) {
-            stdin().lines().map_while(Result::ok).for_each(|s| {
-                inj.push(s, |s_ref, c| {
-                    c[0] = s_ref.clone().into();
-                });
-            })
+            stdin()
+                .lines()
+                .map_while(Result::ok)
+                .enumerate()
+                .for_each(|item| {
+                    inj.push(item, |(_i, s), row| {
+                        row[0] = s.clone().into();
+                    });
+                })
         }
     });
 
     let window_height = cli.window_height;
     let window_width = cli.window_width;
-    // let window_height = 510.0;
-    // let window_width = 480.0;
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -120,7 +117,7 @@ fn main() -> Result<(), eframe::Error> {
 
 struct Emenu {
     input: String,
-    nucleo: Nucleo<String>,
+    nucleo: Nucleo<(usize, String)>,
     prompt: String,
     marker: String,
     pointer: String,
@@ -130,12 +127,12 @@ struct Emenu {
     selected_idx: u32,
     first_idx: u32,
     output_number: usize,
-    multi_output: Vec<String>,
+    output: Vec<(usize, String)>,
     font_id: FontId,
 }
 
 impl Emenu {
-    fn new(nucleo: Nucleo<String>, cli: cli::Cli, font_id: FontId) -> Self {
+    fn new(nucleo: Nucleo<(usize, String)>, cli: cli::Cli, font_id: FontId) -> Self {
         Self {
             nucleo,
             prompt: cli.prompt,
@@ -144,12 +141,11 @@ impl Emenu {
             cycle: cli.cycle,
             exit_lost_focus: cli.exit_lost_focus,
             has_focus: false,
-            input: String::new(),
+            input: Default::default(),
             selected_idx: 0,
             first_idx: 0,
-            output_number: 1,
-            // output_number: cli.multi.unwrap_or(1),
-            multi_output: vec![],
+            output_number: cli.multi.unwrap_or(1),
+            output: Default::default(),
             font_id,
         }
     }
@@ -175,7 +171,7 @@ impl eframe::App for Emenu {
                     .stroke((1.0, Color32::GRAY))
                     .inner_margin(inner_margin)
                     .outer_margin(4.0)
-                    .rounding(2.0),
+                    .corner_radius(2.0),
             )
             .show(ctx, |ui| {
                 ui.vertical(|ui| {
@@ -239,9 +235,9 @@ impl eframe::App for Emenu {
                     // dbg!(snap.pattern());
 
                     let count_string = format!(
-                        "{matched_count}/{total_count}{}",
+                        "{matched_count}/{total_count} {}",
                         if self.output_number > 1 {
-                            format!("({})", self.multi_output.len())
+                            format!("({})", self.output.len())
                         } else {
                             "".to_string()
                         }
@@ -276,7 +272,7 @@ impl eframe::App for Emenu {
 
                             view_rows += 1;
 
-                            let match_string = matched.data;
+                            let (match_id, match_string) = matched.data;
 
                             let pointer = if i == self.selected_idx as usize {
                                 self.pointer.clone()
@@ -284,42 +280,30 @@ impl eframe::App for Emenu {
                                 " ".repeat(self.pointer.chars().count())
                             };
 
-                            // TODO: marker
-                            let marker = " ";
-
-                            // let pointer_len = self.pointer.chars().count();
-                            // let marker_len = self.marker.chars().count();
+                            let marker = if self.output.iter().any(|(i, _s)| i == match_id) {
+                                self.marker.clone()
+                            } else {
+                                " ".repeat(self.pointer.chars().count())
+                            };
 
                             // TODO: get the correct amount of characters that fit
                             // let max_chars = get_max_chars_in_ui(ui, char_width, inner_margin)
                             //     - (marker_len + pointer_len);
                             let max_chars = get_max_chars_in_ui(ui, char_width, inner_margin);
 
-                            // let ellipsis = if match_string.chars().count() > max_chars {
-                            //     '…'.to_string()
-                            // } else {
-                            //     "".to_string()
-                            // };
-
                             let layout = layout::create_layout(
                                 &self.input,
                                 match_string,
                                 &pointer,
-                                marker,
+                                &marker,
                                 max_chars,
                                 self.font_id.clone(),
                             );
 
                             let entry = ui.add(
-                                egui::Label::new(
-                                    // format!(
-                                    //     "{pointer}{marker}{}{ellipsis}",
-                                    //     match_string.char_range(0..max_chars),
-                                    // ),
-                                    layout,
-                                )
-                                .sense(Sense::click())
-                                .wrap_mode(egui::TextWrapMode::Truncate),
+                                egui::Label::new(layout)
+                                    .sense(Sense::click())
+                                    .wrap_mode(egui::TextWrapMode::Truncate),
                             );
 
                             if entry.clicked() {
@@ -334,18 +318,37 @@ impl eframe::App for Emenu {
                     });
 
                     // Move current pointer with ctrl + p/n, arrows or mouse wheel
-                    let tab_multi =
-                        ctx.input(|i| i.key_pressed(Key::Tab)) && self.output_number > 1;
-                    if view_rows > 0
-                        && ((ctx.input(|i| {
-                            (i.modifiers.matches_exact(Modifiers::CTRL) && i.key_pressed(Key::N))
-                                || i.key_pressed(Key::ArrowDown)
-                        })) || (ui.ui_contains_pointer()
-                            && ctx.input(|i| i.raw_scroll_delta.y < 0.0))
-                            || tab_multi)
-                    {
-                        // if tab_multi {}
+                    let tab_forward = self.output_number > 1
+                        && ctx.input(|i| {
+                            i.modifiers.matches_exact(Modifiers::NONE) && i.key_pressed(Key::Tab)
+                        });
+                    let tab_backward = self.output_number > 1
+                        && ctx.input(|i| {
+                            i.modifiers.matches_exact(Modifiers::SHIFT) && i.key_pressed(Key::Tab)
+                        });
 
+                    // If multi, toggle before moving
+                    if tab_forward || tab_backward {
+                        if let Some(item) =
+                            snap.get_matched_item(self.first_idx + self.selected_idx)
+                        {
+                            if let Some(pos) =
+                                self.output.iter().position(|(i, _s)| i == &item.data.0)
+                            {
+                                self.output.remove(pos);
+                            } else if self.output.len() < self.output_number {
+                                self.output.push(item.data.clone())
+                            }
+                        }
+                    }
+
+                    let scrolled_down =
+                        ui.ui_contains_pointer() && ctx.input(|i| i.raw_scroll_delta.y < 0.0);
+                    let pressed_down = ctx.input(|i| {
+                        (i.modifiers.matches_exact(Modifiers::CTRL) && i.key_pressed(Key::N))
+                            || i.key_pressed(Key::ArrowDown)
+                    });
+                    if view_rows > 0 && (pressed_down || scrolled_down || tab_forward) {
                         if self.selected_idx >= (view_rows - 1)
                             && self.selected_idx < (matched_count - 1 - self.first_idx)
                         {
@@ -358,13 +361,13 @@ impl eframe::App for Emenu {
                         }
                     }
 
-                    if view_rows > 0
-                        && ((ctx.input(|i| {
-                            (i.modifiers.matches_exact(Modifiers::CTRL) && i.key_pressed(Key::P))
-                                || i.key_pressed(Key::ArrowUp)
-                        })) || (ui.ui_contains_pointer()
-                            && ctx.input(|i| i.raw_scroll_delta.y > 0.0)))
-                    {
+                    let scrolled_up =
+                        ui.ui_contains_pointer() && ctx.input(|i| i.raw_scroll_delta.y > 0.0);
+                    let pressed_up = ctx.input(|i| {
+                        (i.modifiers.matches_exact(Modifiers::CTRL) && i.key_pressed(Key::P))
+                            || i.key_pressed(Key::ArrowUp)
+                    });
+                    if view_rows > 0 && (pressed_up || scrolled_up || tab_backward) {
                         if self.first_idx != 0 && self.selected_idx == 0 {
                             self.first_idx -= 1;
                         }
@@ -384,10 +387,19 @@ impl eframe::App for Emenu {
                     if ctx.input(|i| i.key_pressed(Key::Enter)) {
                         if total_count == 0 {
                             print!("{}", self.input)
+                        } else if self.output_number > 1 {
+                            print!(
+                                "{}",
+                                self.output
+                                    .iter()
+                                    .map(|(_i, s)| s.clone())
+                                    .collect::<Vec<String>>()
+                                    .join("\n")
+                            )
                         } else if let Some(item) =
                             snap.get_matched_item(self.first_idx + self.selected_idx)
                         {
-                            print!("{}", item.data)
+                            print!("{}", item.data.1)
                         }
                         exit(0);
                     }
