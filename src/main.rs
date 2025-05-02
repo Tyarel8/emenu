@@ -237,7 +237,15 @@ impl eframe::App for Emenu {
                     let count_string = format!(
                         "{matched_count}/{total_count} {}",
                         if self.output_number > 1 {
-                            format!("({})", self.output.len())
+                            format!(
+                                "({}{})",
+                                self.output.len(),
+                                if self.output_number < 999999999 {
+                                    format!("/{}", self.output_number)
+                                } else {
+                                    "".to_string()
+                                }
+                            )
                         } else {
                             "".to_string()
                         }
