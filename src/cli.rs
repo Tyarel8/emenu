@@ -1,6 +1,7 @@
 use clap::Parser;
 
 #[derive(Parser)]
+#[command(version)]
 pub struct Cli {
     /// Exit immediately when there's no match
     #[arg(long = "exit-0", short = '0')]
