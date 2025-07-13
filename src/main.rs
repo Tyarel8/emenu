@@ -10,10 +10,9 @@ use clap::Parser;
 use eframe::{
     egui::{self, EventFilter, FontData, Key, Modifiers, Sense, Separator},
     epaint::{Color32, FontId},
-    HardwareAcceleration,
 };
 use font_kit::{family_name::FamilyName, source::SystemSource};
-use nucleo::{pattern::Normalization, Nucleo};
+use nucleo::{Nucleo, pattern::Normalization};
 
 mod cli;
 mod layout;
@@ -61,13 +60,15 @@ fn main() -> Result<(), eframe::Error> {
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
+            .with_active(true)
             .with_always_on_top()
             .with_decorations(false)
             .with_resizable(false)
+            .with_taskbar(false)
+            .with_drag_and_drop(false)
             .with_inner_size([window_width, window_height])
             .with_max_inner_size((window_width, window_height)),
         centered: true,
-        hardware_acceleration: HardwareAcceleration::Required,
         ..Default::default()
     };
 
