@@ -212,6 +212,14 @@ impl eframe::App for Emenu {
                             )
                         });
 
+                        // ctrl + k to clear input
+                        if ctx.input(|i| {
+                            i.modifiers.matches_exact(Modifiers::CTRL) && i.key_pressed(Key::K)
+                        }) {
+                            self.input.clear();
+                            edit.mark_changed();
+                        }
+
                         if edit.changed() {
                             self.nucleo.pattern.reparse(
                                 0,
@@ -391,13 +399,6 @@ impl eframe::App for Emenu {
 
                     // Prevent the selected_idx from overflowing
                     self.selected_idx = self.selected_idx.min(view_rows.saturating_sub(1));
-
-                    // ctrl + k to clear input
-                    if ctx.input(|i| {
-                        i.modifiers.matches_exact(Modifiers::CTRL) && i.key_pressed(Key::K)
-                    }) {
-                        self.input.clear();
-                    }
 
                     // Handle enter
                     if ctx.input(|i| i.key_pressed(Key::Enter)) {
