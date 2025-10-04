@@ -123,6 +123,7 @@ struct Emenu {
     marker: String,
     pointer: String,
     cycle: bool,
+    scroll_offset: u32,
     exit_lost_focus: bool,
     has_focus: bool,
     selected_idx: u32,
@@ -140,6 +141,7 @@ impl Emenu {
             marker: cli.marker,
             pointer: cli.pointer,
             cycle: cli.cycle,
+            scroll_offset: cli.scroll_offset,
             exit_lost_focus: cli.exit_lost_focus,
             has_focus: false,
             input: Default::default(),
@@ -366,8 +368,9 @@ impl eframe::App for Emenu {
                             || i.key_pressed(Key::ArrowDown)
                     });
                     if view_rows > 0 && (pressed_down || scrolled_down || tab_forward) {
-                        if self.selected_idx >= (view_rows - 1)
-                            && self.selected_idx < (matched_count - 1 - self.first_idx)
+                        if self.selected_idx >= (view_rows - 1 - self.scroll_offset)
+                            && self.selected_idx
+                                < (matched_count - 1 - self.first_idx - self.scroll_offset)
                         {
                             self.first_idx += 1;
                         } else if self.cycle && self.selected_idx == view_rows.saturating_sub(1) {
@@ -385,8 +388,9 @@ impl eframe::App for Emenu {
                             || i.key_pressed(Key::ArrowUp)
                     });
                     if view_rows > 0 && (pressed_up || scrolled_up || tab_backward) {
-                        if self.first_idx != 0 && self.selected_idx == 0 {
+                        if self.first_idx != 0 && self.selected_idx <= self.scroll_offset {
                             self.first_idx -= 1;
+                            self.selected_idx += 1;
                         }
 
                         if self.cycle && self.selected_idx == 0 {
