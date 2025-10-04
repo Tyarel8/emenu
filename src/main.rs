@@ -372,8 +372,7 @@ impl eframe::App for Emenu {
                     });
                     if view_rows > 0 && (pressed_down || scrolled_down || tab_forward) {
                         if self.selected_idx >= (view_rows - 1 - scroll_offset)
-                            && self.selected_idx
-                                < (matched_count - 1 - self.first_idx - scroll_offset)
+                            && self.first_idx + view_rows < matched_count
                         {
                             self.first_idx += 1;
                         } else if self.cycle && self.selected_idx == view_rows.saturating_sub(1) {
