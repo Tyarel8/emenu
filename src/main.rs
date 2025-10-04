@@ -361,6 +361,9 @@ impl eframe::App for Emenu {
                         }
                     }
 
+                    // limit offset if its too big
+                    let scroll_offset = self.scroll_offset.min(view_rows - 1);
+
                     let scrolled_down =
                         ui.ui_contains_pointer() && ctx.input(|i| i.raw_scroll_delta.y < 0.0);
                     let pressed_down = ctx.input(|i| {
@@ -368,9 +371,9 @@ impl eframe::App for Emenu {
                             || i.key_pressed(Key::ArrowDown)
                     });
                     if view_rows > 0 && (pressed_down || scrolled_down || tab_forward) {
-                        if self.selected_idx >= (view_rows - 1 - self.scroll_offset)
+                        if self.selected_idx >= (view_rows - 1 - scroll_offset)
                             && self.selected_idx
-                                < (matched_count - 1 - self.first_idx - self.scroll_offset)
+                                < (matched_count - 1 - self.first_idx - scroll_offset)
                         {
                             self.first_idx += 1;
                         } else if self.cycle && self.selected_idx == view_rows.saturating_sub(1) {
@@ -388,7 +391,7 @@ impl eframe::App for Emenu {
                             || i.key_pressed(Key::ArrowUp)
                     });
                     if view_rows > 0 && (pressed_up || scrolled_up || tab_backward) {
-                        if self.first_idx != 0 && self.selected_idx <= self.scroll_offset {
+                        if self.first_idx != 0 && self.selected_idx <= scroll_offset {
                             self.first_idx -= 1;
                             self.selected_idx += 1;
                         }
