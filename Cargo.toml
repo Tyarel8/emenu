@@ -1,25 +1,25 @@
 [package]
 name = "emenu"
-version = "0.3.10"
+version = "0.3.11"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.98"
+anyhow = "1.0.100"
 atty = "0.2.14"
 clap = { version = "4.5", features = ["derive"] }
 font-kit = "0.14.3"
 nucleo = "0.5.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-eframe = { version = "0.32", default-features = false, features = [
+eframe = { version = "0.33", default-features = false, features = [
   "glow",
   "default_fonts",
 ] }
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
-eframe = { version = "0.32", default-features = false, features = [
+eframe = { version = "0.33", default-features = false, features = [
   "glow",
   "default_fonts",
   "x11",
@@ -34,4 +34,4 @@ strip = "symbols"
 panic = "abort"
 
 [dev-dependencies]
-rstest = "0.25.0"
+rstest = "0.26.1"
