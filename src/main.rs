@@ -25,6 +25,14 @@ fn main() -> Result<(), eframe::Error> {
         exit(0)
     }
 
+    let border_color = match color_from_string(&cli.border_color) {
+        Ok(border_color) => border_color,
+        Err(e) => {
+            eprintln!("{e}");
+            exit(1);
+        }
+    };
+
     let nucleo = Nucleo::new(
         {
             let mut conf = nucleo::Config::DEFAULT;
@@ -111,7 +119,7 @@ fn main() -> Result<(), eframe::Error> {
                 ..Default::default()
             });
 
-            Ok(Box::new(Emenu::new(nucleo, cli, font)))
+            Ok(Box::new(Emenu::new(nucleo, cli, font, border_color)))
         }),
     )
 }
@@ -122,6 +130,7 @@ struct Emenu {
     prompt: String,
     marker: String,
     pointer: String,
+    border_color: Color32,
     cycle: bool,
     scroll_offset: u32,
     exit_lost_focus: bool,
@@ -134,7 +143,12 @@ struct Emenu {
 }
 
 impl Emenu {
-    fn new(nucleo: Nucleo<(usize, String)>, cli: cli::Cli, font_id: FontId) -> Self {
+    fn new(
+        nucleo: Nucleo<(usize, String)>,
+        cli: cli::Cli,
+        font_id: FontId,
+        border_color: Color32,
+    ) -> Self {
         Self {
             nucleo,
             prompt: cli.prompt,
@@ -147,6 +161,7 @@ impl Emenu {
             input: Default::default(),
             selected_idx: 0,
             first_idx: 0,
+            border_color,
             output_number: cli.multi.unwrap_or(1),
             output: Default::default(),
             font_id,
@@ -171,7 +186,7 @@ impl eframe::App for Emenu {
         egui::CentralPanel::default()
             .frame(
                 egui::Frame::default()
-                    .stroke((1.0, Color32::GRAY))
+                    .stroke((0.5, self.border_color))
                     .inner_margin(inner_margin)
                     .outer_margin(4.0)
                     .corner_radius(2.0),
@@ -472,4 +487,69 @@ fn get_font_data(font_name: &str) -> anyhow::Result<FontData> {
 fn get_max_chars_in_ui(ui: &mut egui::Ui, char_width: f32, inner_margin: f32) -> usize {
     // let char_width = ui.fonts(|f| f.glyph_width(font_id, ' '));
     ((ui.max_rect().width() - inner_margin * 2.0) / char_width).round() as usize
+}
+
+fn color_from_string(color: &str) -> anyhow::Result<Color32> {
+    let color = color.trim().to_lowercase();
+
+    // Named colors (with aliases)
+    let named = match color.as_str() {
+        // Transparent and black/white family
+        "transparent" => Some(Color32::from_rgba_premultiplied(0, 0, 0, 0)),
+        "black" => Some(Color32::from_rgb(0, 0, 0)),
+        "dark_gray" | "dark_grey" => Some(Color32::from_rgb(96, 96, 96)),
+        "gray" | "grey" => Some(Color32::from_rgb(160, 160, 160)),
+        "light_gray" | "light_grey" => Some(Color32::from_rgb(220, 220, 220)),
+        "white" => Some(Color32::from_rgb(255, 255, 255)),
+
+        // Reds
+        "brown" => Some(Color32::from_rgb(165, 42, 42)),
+        "dark_red" => Some(Color32::from_rgb(0x8B, 0, 0)),
+        "red" => Some(Color32::from_rgb(255, 0, 0)),
+        "light_red" => Some(Color32::from_rgb(255, 128, 128)),
+
+        // Primaries and secondaries
+        "cyan" => Some(Color32::from_rgb(0, 255, 255)),
+        "magenta" => Some(Color32::from_rgb(255, 0, 255)),
+        "yellow" => Some(Color32::from_rgb(255, 255, 0)),
+
+        // Warm tones
+        "orange" => Some(Color32::from_rgb(255, 165, 0)),
+        "light_yellow" => Some(Color32::from_rgb(255, 255, 0xE0)),
+        "khaki" => Some(Color32::from_rgb(240, 230, 140)),
+
+        // Greens
+        "dark_green" => Some(Color32::from_rgb(0, 0x64, 0)),
+        "green" => Some(Color32::from_rgb(0, 255, 0)),
+        "light_green" => Some(Color32::from_rgb(0x90, 0xEE, 0x90)),
+
+        // Blues and purple
+        "dark_blue" => Some(Color32::from_rgb(0, 0, 0x8B)),
+        "blue" => Some(Color32::from_rgb(0, 0, 255)),
+        "light_blue" => Some(Color32::from_rgb(0xAD, 0xD8, 0xE6)),
+        "purple" => Some(Color32::from_rgb(0x80, 0, 0x80)),
+
+        // Others
+        "gold" => Some(Color32::from_rgb(255, 215, 0)),
+        "debug_color" => Some(Color32::from_rgba_premultiplied(0, 200, 0, 128)),
+
+        _ => None,
+    };
+
+    if let Some(c) = named {
+        return Ok(c);
+    }
+
+    // Hex colors: "#RRGGBB" or "RRGGBB"
+    let hex = color.strip_prefix('#').unwrap_or(&color);
+    if hex.len() == 6 {
+        if let Ok(rgb) = u32::from_str_radix(hex, 16) {
+            let r = ((rgb >> 16) & 0xFF) as u8;
+            let g = ((rgb >> 8) & 0xFF) as u8;
+            let b = (rgb & 0xFF) as u8;
+            return Ok(Color32::from_rgb(r, g, b));
+        }
+    }
+
+    Err(anyhow!("Invalid color format: {}", color))
 }

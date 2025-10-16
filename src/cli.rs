@@ -39,6 +39,9 @@ pub struct Cli {
     // /// Ellipsis to show when line is truncated
     // #[arg(long, default_value_t = '…')]
     // pub ellipsis: char,
+    /// Set border color, name or hex value
+    #[arg(long, default_value_t = String::from("gray"))]
+    pub border_color: String,
     /// Set font size
     #[arg(long, default_value_t = 16.0)]
     pub font_size: f32,
