@@ -114,7 +114,7 @@ fn main() -> Result<(), eframe::Error> {
                 size: cli.font_size,
                 family: egui::FontFamily::Monospace,
             };
-            ctx.set_style(egui::style::Style {
+            ctx.set_global_style(egui::style::Style {
                 override_font_id: Some(font.clone()),
                 ..Default::default()
             });
@@ -170,14 +170,14 @@ impl Emenu {
 }
 
 impl eframe::App for Emenu {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let snapshot_changed = self.nucleo.tick(10).changed;
 
         if snapshot_changed {
-            ctx.request_repaint_after(Duration::from_secs(1));
+            ui.request_repaint_after(Duration::from_secs(1));
         }
 
-        self.keyboard_events_exit(ctx, _frame);
+        self.keyboard_events_exit(ui.ctx(), _frame);
 
         // ctx.fonts(|f| dbg!(f.pixels_per_point()));
 
@@ -191,7 +191,7 @@ impl eframe::App for Emenu {
                     .outer_margin(4.0)
                     .corner_radius(2.0),
             )
-            .show(ctx, |ui| {
+            .show_inside(ui, |ui| {
                 ui.vertical(|ui| {
                     ui.horizontal(|ui| {
                         let prompt = if !self.prompt.is_empty() {
@@ -230,7 +230,7 @@ impl eframe::App for Emenu {
                         });
 
                         // ctrl + k to clear input
-                        if ctx.input(|i| {
+                        if ui.input(|i| {
                             i.modifiers.matches_exact(Modifiers::CTRL) && i.key_pressed(Key::K)
                         }) {
                             self.input.clear();
@@ -353,26 +353,24 @@ impl eframe::App for Emenu {
 
                     // Move current pointer with ctrl + p/n, arrows or mouse wheel
                     let tab_forward = self.output_number > 1
-                        && ctx.input(|i| {
+                        && ui.input(|i| {
                             i.modifiers.matches_exact(Modifiers::NONE) && i.key_pressed(Key::Tab)
                         });
                     let tab_backward = self.output_number > 1
-                        && ctx.input(|i| {
+                        && ui.input(|i| {
                             i.modifiers.matches_exact(Modifiers::SHIFT) && i.key_pressed(Key::Tab)
                         });
 
                     // If multi, toggle before moving
-                    if tab_forward || tab_backward {
-                        if let Some(item) =
+                    if (tab_forward || tab_backward)
+                        && let Some(item) =
                             snap.get_matched_item(self.first_idx + self.selected_idx)
+                    {
+                        if let Some(pos) = self.output.iter().position(|(i, _s)| i == &item.data.0)
                         {
-                            if let Some(pos) =
-                                self.output.iter().position(|(i, _s)| i == &item.data.0)
-                            {
-                                self.output.remove(pos);
-                            } else if self.output.len() < self.output_number {
-                                self.output.push(item.data.clone())
-                            }
+                            self.output.remove(pos);
+                        } else if self.output.len() < self.output_number {
+                            self.output.push(item.data.clone())
                         }
                     }
 
@@ -380,8 +378,8 @@ impl eframe::App for Emenu {
                     let scroll_offset = self.scroll_offset.min(view_rows - 1);
 
                     let scrolled_down =
-                        ui.ui_contains_pointer() && ctx.input(|i| i.raw_scroll_delta.y < 0.0);
-                    let pressed_down = ctx.input(|i| {
+                        ui.ui_contains_pointer() && ui.input(|i| i.smooth_scroll_delta.y < 0.0);
+                    let pressed_down = ui.input(|i| {
                         (i.modifiers.matches_exact(Modifiers::CTRL) && i.key_pressed(Key::N))
                             || i.key_pressed(Key::ArrowDown)
                     });
@@ -399,8 +397,8 @@ impl eframe::App for Emenu {
                     }
 
                     let scrolled_up =
-                        ui.ui_contains_pointer() && ctx.input(|i| i.raw_scroll_delta.y > 0.0);
-                    let pressed_up = ctx.input(|i| {
+                        ui.ui_contains_pointer() && ui.input(|i| i.smooth_scroll_delta.y > 0.0);
+                    let pressed_up = ui.input(|i| {
                         (i.modifiers.matches_exact(Modifiers::CTRL) && i.key_pressed(Key::P))
                             || i.key_pressed(Key::ArrowUp)
                     });
@@ -422,7 +420,7 @@ impl eframe::App for Emenu {
                     self.selected_idx = self.selected_idx.min(view_rows.saturating_sub(1));
 
                     // Handle enter
-                    if ctx.input(|i| i.key_pressed(Key::Enter)) {
+                    if ui.input(|i| i.key_pressed(Key::Enter)) {
                         if total_count == 0 {
                             print!("{}", self.input)
                         } else if self.output_number > 1 {
@@ -542,13 +540,13 @@ fn color_from_string(color: &str) -> anyhow::Result<Color32> {
 
     // Hex colors: "#RRGGBB" or "RRGGBB"
     let hex = color.strip_prefix('#').unwrap_or(&color);
-    if hex.len() == 6 {
-        if let Ok(rgb) = u32::from_str_radix(hex, 16) {
-            let r = ((rgb >> 16) & 0xFF) as u8;
-            let g = ((rgb >> 8) & 0xFF) as u8;
-            let b = (rgb & 0xFF) as u8;
-            return Ok(Color32::from_rgb(r, g, b));
-        }
+    if hex.len() == 6
+        && let Ok(rgb) = u32::from_str_radix(hex, 16)
+    {
+        let r = ((rgb >> 16) & 0xFF) as u8;
+        let g = ((rgb >> 8) & 0xFF) as u8;
+        let b = (rgb & 0xFF) as u8;
+        return Ok(Color32::from_rgb(r, g, b));
     }
 
     Err(anyhow!("Invalid color format: {}", color))
