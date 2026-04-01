@@ -428,8 +428,8 @@ impl eframe::App for Emenu {
                                 "{}",
                                 self.output
                                     .iter()
-                                    .map(|(_i, s)| s.clone())
-                                    .collect::<Vec<String>>()
+                                    .map(|(_i, s)| s.as_str())
+                                    .collect::<Vec<_>>()
                                     .join("\n")
                             )
                         } else if let Some(item) =
