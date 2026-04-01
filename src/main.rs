@@ -8,7 +8,7 @@ use std::{io::stdin, process::exit, sync::Arc, thread, time::Duration};
 
 use clap::Parser;
 use eframe::{
-    egui::{self, EventFilter, FontData, Key, Modifiers, Sense, Separator},
+    egui::{self, Event, EventFilter, FontData, Key, Modifiers, Sense, Separator, Vec2},
     epaint::{Color32, FontId},
 };
 use font_kit::{family_name::FamilyName, source::SystemSource};
@@ -376,9 +376,20 @@ impl eframe::App for Emenu {
 
                     // limit offset if its too big
                     let scroll_offset = self.scroll_offset.min(view_rows - 1);
+                    let raw_scroll_delta = ui.input(|i| {
+                        i.events
+                            .iter()
+                            .filter_map(|x| match x {
+                                Event::MouseWheel {
+                                    delta: Vec2 { x: _, y },
+                                    ..
+                                } => Some(y),
+                                _ => None,
+                            })
+                            .sum::<f32>()
+                    });
 
-                    let scrolled_down =
-                        ui.ui_contains_pointer() && ui.input(|i| i.smooth_scroll_delta.y < 0.0);
+                    let scrolled_down = ui.ui_contains_pointer() && raw_scroll_delta < 0.0;
                     let pressed_down = ui.input(|i| {
                         (i.modifiers.matches_exact(Modifiers::CTRL) && i.key_pressed(Key::N))
                             || i.key_pressed(Key::ArrowDown)
@@ -396,8 +407,7 @@ impl eframe::App for Emenu {
                         }
                     }
 
-                    let scrolled_up =
-                        ui.ui_contains_pointer() && ui.input(|i| i.smooth_scroll_delta.y > 0.0);
+                    let scrolled_up = ui.ui_contains_pointer() && raw_scroll_delta > 0.0;
                     let pressed_up = ui.input(|i| {
                         (i.modifiers.matches_exact(Modifiers::CTRL) && i.key_pressed(Key::P))
                             || i.key_pressed(Key::ArrowUp)
