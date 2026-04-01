@@ -344,7 +344,7 @@ impl eframe::App for Emenu {
                                 self.selected_idx = i as u32;
                             }
 
-                            if entry.double_clicked() {
+                            if entry.double_clicked() && self.output_number == 1 {
                                 print!("{match_string}");
                                 exit(0);
                             }
